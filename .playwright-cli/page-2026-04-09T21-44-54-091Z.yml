@@ -1,0 +1,76 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - paragraph [ref=e4]: Toy reinforcement learner
+    - heading "Basic Math AI" [level=1] [ref=e5]
+    - paragraph [ref=e6]: Enter one arithmetic problem. The app guesses. You only mark each guess as right or wrong, and it learns from that feedback using exact integer arithmetic, even for huge values.
+    - generic [ref=e7]:
+      - generic [ref=e8]: Math problem
+      - generic [ref=e9]:
+        - textbox "Math problem" [active] [ref=e10]:
+          - /placeholder: "Examples: 2+2, -9*4, 58,320,987,456/12,384, 9007199254740993/3"
+          - text: 12,000+3
+        - button "Start Problem" [ref=e11] [cursor=pointer]
+      - status [ref=e12]: Problem loaded. Mark each generated answer as right or wrong.
+  - generic [ref=e13]:
+    - article [ref=e14]:
+      - generic [ref=e15]:
+        - paragraph [ref=e16]: Active problem
+        - heading "Current guess" [level=2] [ref=e17]
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: Problem
+          - strong [ref=e75]: 58320 / 1215
+        - generic [ref=e22]:
+          - paragraph [ref=e23]: Generated answer
+          - paragraph [ref=e24]: "58320"
+        - generic [ref=e25]:
+          - button "Wrong" [ref=e26] [cursor=pointer]
+          - button "Right" [ref=e27] [cursor=pointer]
+        - paragraph [ref=e76]: "Weighted hypotheses: left"
+    - article [ref=e28]:
+      - generic [ref=e29]:
+        - paragraph [ref=e30]: Attempt history
+        - heading "Tried guesses" [level=2] [ref=e31]
+      - list
+      - paragraph [ref=e32]: Wrong guesses will appear here while a problem is active.
+    - article [ref=e33]:
+      - generic [ref=e34]:
+        - paragraph [ref=e35]: Stored knowledge
+        - heading "Learning stats" [level=2] [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38]: Solved problems stored
+        - strong [ref=e39]: "0"
+      - generic [ref=e40]:
+        - generic [ref=e109]:
+          - heading "Operator +" [level=3] [ref=e110]
+          - paragraph [ref=e111]:
+            - generic [ref=e112]: Solved stored
+            - strong [ref=e113]: "0"
+          - paragraph [ref=e114]:
+            - generic [ref=e115]: Top hypothesis
+            - strong [ref=e116]: left (1.0)
+        - generic [ref=e117]:
+          - heading "Operator -" [level=3] [ref=e118]
+          - paragraph [ref=e119]:
+            - generic [ref=e120]: Solved stored
+            - strong [ref=e121]: "0"
+          - paragraph [ref=e122]:
+            - generic [ref=e123]: Top hypothesis
+            - strong [ref=e124]: left (1.0)
+        - generic [ref=e125]:
+          - heading "Operator *" [level=3] [ref=e126]
+          - paragraph [ref=e127]:
+            - generic [ref=e128]: Solved stored
+            - strong [ref=e129]: "0"
+          - paragraph [ref=e130]:
+            - generic [ref=e131]: Top hypothesis
+            - strong [ref=e132]: left (1.0)
+        - generic [ref=e133]:
+          - heading "Operator /" [level=3] [ref=e134]
+          - paragraph [ref=e135]:
+            - generic [ref=e136]: Solved stored
+            - strong [ref=e137]: "0"
+          - paragraph [ref=e138]:
+            - generic [ref=e139]: Top hypothesis
+            - strong [ref=e140]: left (1.0)
+  - button "Reset Learning" [ref=e74] [cursor=pointer]

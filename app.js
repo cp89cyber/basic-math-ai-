@@ -1,10 +1,12 @@
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "basic-math-ai:v1";
+  const STORAGE_KEY = "basic-math-ai:v2";
+  const LEGACY_STORAGE_KEY = "basic-math-ai:v1";
   const OPERATORS = ["+", "-", "*", "/"];
   const MEMORY_SOURCE = "__memory__";
   const SPIRAL_SOURCE = "__spiral__";
+  const INTEGER_TEXT_PATTERN = /^-?\d+$/;
   const PROBLEM_PATTERN = /^\s*(-?\d+)\s*([+\-*/])\s*(-?\d+)\s*$/;
   const HYPOTHESES = [
     {
@@ -25,21 +27,21 @@
       id: "0",
       label: "0",
       evaluate() {
-        return 0;
+        return 0n;
       },
     },
     {
       id: "1",
       label: "1",
       evaluate() {
-        return 1;
+        return 1n;
       },
     },
     {
       id: "-1",
       label: "-1",
       evaluate() {
-        return -1;
+        return -1n;
       },
     },
     {
@@ -74,11 +76,11 @@
       id: "left/right",
       label: "left/right",
       evaluate(problem) {
-        if (problem.right === 0) {
+        if (problem.right === 0n) {
           return null;
         }
 
-        if (problem.left % problem.right !== 0) {
+        if (problem.left % problem.right !== 0n) {
           return null;
         }
 
@@ -127,7 +129,7 @@
 
   function createDefaultKnowledge() {
     return {
-      version: 1,
+      version: 2,
       exactAnswers: {},
       operatorWeights: createDefaultOperatorWeights(),
       operatorStats: {
@@ -173,20 +175,50 @@
   }
 
   function loadKnowledge() {
-    const fallback = createDefaultKnowledge();
+    const current = loadCurrentKnowledge();
 
+    if (current) {
+      return current;
+    }
+
+    const migrated = loadLegacyKnowledge();
+
+    if (migrated) {
+      saveKnowledge(migrated);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return migrated;
+    }
+
+    return createDefaultKnowledge();
+  }
+
+  function loadCurrentKnowledge() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
 
       if (!raw) {
-        return fallback;
+        return null;
       }
 
       const parsed = JSON.parse(raw);
-
       return normalizeKnowledge(parsed);
     } catch (error) {
-      return fallback;
+      return null;
+    }
+  }
+
+  function loadLegacyKnowledge() {
+    try {
+      const raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+
+      if (!raw) {
+        return null;
+      }
+
+      const parsed = JSON.parse(raw);
+      return migrateLegacyKnowledge(parsed);
+    } catch (error) {
+      return null;
     }
   }
 
@@ -197,75 +229,114 @@
       return base;
     }
 
-    if (candidate.version !== 1) {
+    if (candidate.version !== 2) {
       return base;
     }
 
-    if (candidate.exactAnswers && typeof candidate.exactAnswers === "object") {
-      base.exactAnswers = {};
-
-      Object.keys(candidate.exactAnswers).forEach(function (key) {
-        const value = candidate.exactAnswers[key];
-
-        if (Number.isInteger(value)) {
-          base.exactAnswers[key] = value;
-        }
-      });
-    }
-
-    if (candidate.operatorWeights && typeof candidate.operatorWeights === "object") {
-      OPERATORS.forEach(function (operator) {
-        const incomingWeights = candidate.operatorWeights[operator];
-
-        if (!incomingWeights || typeof incomingWeights !== "object") {
-          return;
-        }
-
-        HYPOTHESES.forEach(function (hypothesis) {
-          const incomingValue = incomingWeights[hypothesis.id];
-
-          if (typeof incomingValue === "number" && Number.isFinite(incomingValue)) {
-            base.operatorWeights[operator][hypothesis.id] = clampWeight(incomingValue);
-          }
-        });
-      });
-    }
-
-    const incomingStats = candidate.operatorStats;
-
-    if (incomingStats && typeof incomingStats === "object") {
-      if (
-        typeof incomingStats.totalSolved === "number" &&
-        Number.isFinite(incomingStats.totalSolved) &&
-        incomingStats.totalSolved >= 0
-      ) {
-        base.operatorStats.totalSolved = Math.floor(incomingStats.totalSolved);
-      }
-
-      if (incomingStats.solvedCounts && typeof incomingStats.solvedCounts === "object") {
-        OPERATORS.forEach(function (operator) {
-          const incomingCount = incomingStats.solvedCounts[operator];
-
-          if (
-            typeof incomingCount === "number" &&
-            Number.isFinite(incomingCount) &&
-            incomingCount >= 0
-          ) {
-            base.operatorStats.solvedCounts[operator] = Math.floor(incomingCount);
-          }
-        });
-      }
-    }
+    copyExactAnswers(candidate.exactAnswers, base.exactAnswers);
+    copyOperatorWeights(candidate.operatorWeights, base.operatorWeights);
+    copyOperatorStats(candidate.operatorStats, base.operatorStats);
 
     return base;
   }
 
-  function saveKnowledge() {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(knowledge));
+  function migrateLegacyKnowledge(candidate) {
+    const base = createDefaultKnowledge();
+
+    if (!candidate || typeof candidate !== "object" || candidate.version !== 1) {
+      return base;
+    }
+
+    if (candidate.exactAnswers && typeof candidate.exactAnswers === "object") {
+      Object.keys(candidate.exactAnswers).forEach(function (key) {
+        const value = candidate.exactAnswers[key];
+
+        if (Number.isSafeInteger(value)) {
+          base.exactAnswers[key] = serializeBigInt(BigInt(value));
+        }
+      });
+    }
+
+    copyOperatorWeights(candidate.operatorWeights, base.operatorWeights);
+    copyOperatorStats(candidate.operatorStats, base.operatorStats);
+
+    return base;
+  }
+
+  function copyExactAnswers(source, destination) {
+    if (!source || typeof source !== "object") {
+      return;
+    }
+
+    Object.keys(source).forEach(function (key) {
+      const canonicalValue = normalizeStoredAnswer(source[key]);
+
+      if (canonicalValue !== null) {
+        destination[key] = canonicalValue;
+      }
+    });
+  }
+
+  function copyOperatorWeights(source, destination) {
+    if (!source || typeof source !== "object") {
+      return;
+    }
+
+    OPERATORS.forEach(function (operator) {
+      const incomingWeights = source[operator];
+
+      if (!incomingWeights || typeof incomingWeights !== "object") {
+        return;
+      }
+
+      HYPOTHESES.forEach(function (hypothesis) {
+        const incomingValue = incomingWeights[hypothesis.id];
+
+        if (typeof incomingValue === "number" && Number.isFinite(incomingValue)) {
+          destination[operator][hypothesis.id] = clampWeight(incomingValue);
+        }
+      });
+    });
+  }
+
+  function copyOperatorStats(source, destination) {
+    if (!source || typeof source !== "object") {
+      return;
+    }
+
+    if (
+      typeof source.totalSolved === "number" &&
+      Number.isFinite(source.totalSolved) &&
+      source.totalSolved >= 0
+    ) {
+      destination.totalSolved = Math.floor(source.totalSolved);
+    }
+
+    if (!source.solvedCounts || typeof source.solvedCounts !== "object") {
+      return;
+    }
+
+    OPERATORS.forEach(function (operator) {
+      const incomingCount = source.solvedCounts[operator];
+
+      if (
+        typeof incomingCount === "number" &&
+        Number.isFinite(incomingCount) &&
+        incomingCount >= 0
+      ) {
+        destination.solvedCounts[operator] = Math.floor(incomingCount);
+      }
+    });
+  }
+
+  function saveKnowledge(snapshot) {
+    const payload = snapshot || knowledge;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }
 
   function resetKnowledge() {
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     knowledge = createDefaultKnowledge();
     session = createEmptySession();
     setMessage("Learning reset. Enter a new problem to start over.", "success");
@@ -279,29 +350,37 @@
     if (!match) {
       return {
         ok: false,
-        message: "Enter a problem like 2+2, 9-4, 3*7, or 8/2.",
+        message: "Enter a problem like 2+2, -9*4, or 9007199254740993/3.",
       };
     }
 
-    const left = Number.parseInt(match[1], 10);
+    const left = parseIntegerText(match[1]);
     const op = match[2];
-    const right = Number.parseInt(match[3], 10);
+    const right = parseIntegerText(match[3]);
 
-    if (op === "/" && right === 0) {
+    if (left === null || right === null) {
+      return {
+        ok: false,
+        message: "Only signed whole integers are supported.",
+      };
+    }
+
+    if (op === "/" && right === 0n) {
       return {
         ok: false,
         message: "Division by zero is not allowed.",
       };
     }
 
-    if (op === "/" && left % right !== 0) {
+    if (op === "/" && left % right !== 0n) {
       return {
         ok: false,
-        message: "Division problems must have a whole-number answer in this version.",
+        message: "Division problems must have a whole-number answer.",
       };
     }
 
-    const normalized = left + " " + op + " " + right;
+    const normalized =
+      serializeBigInt(left) + " " + op + " " + serializeBigInt(right);
 
     return {
       ok: true,
@@ -345,9 +424,9 @@
     }
 
     const seen = new Set(session.rejectedGuesses);
-    const memorized = knowledge.exactAnswers[session.activeProblem.key];
+    const memorized = getStoredAnswer(session.activeProblem.key);
 
-    if (Number.isInteger(memorized) && !seen.has(memorized)) {
+    if (memorized !== null && !seen.has(memorized)) {
       session.currentGuess = memorized;
       session.currentGuessSources = [MEMORY_SOURCE];
       return;
@@ -369,7 +448,7 @@
     const baseValue =
       candidateCache.sortedCandidates.length > 0
         ? candidateCache.sortedCandidates[0].value
-        : 0;
+        : 0n;
     const spiralGuess = findSpiralGuess(baseValue, seen);
 
     session.currentGuess = spiralGuess;
@@ -383,11 +462,12 @@
     HYPOTHESES.forEach(function (hypothesis, index) {
       const value = hypothesis.evaluate(problem);
 
-      if (!Number.isInteger(value)) {
+      if (typeof value !== "bigint") {
         return;
       }
 
-      const existing = grouped.get(value);
+      const key = serializeBigInt(value);
+      const existing = grouped.get(key);
 
       if (existing) {
         existing.score += operatorWeights[hypothesis.id];
@@ -396,7 +476,7 @@
         return;
       }
 
-      grouped.set(value, {
+      grouped.set(key, {
         value: value,
         score: operatorWeights[hypothesis.id],
         sources: [hypothesis.id],
@@ -413,7 +493,7 @@
         return left.firstIndex - right.firstIndex;
       }
 
-      return left.value - right.value;
+      return compareBigInts(left.value, right.value);
     });
 
     return {
@@ -427,20 +507,21 @@
     }
 
     for (let step = 1; step < 10000; step += 1) {
-      const positive = baseValue + step;
+      const offset = BigInt(step);
+      const positive = baseValue + offset;
 
       if (!seen.has(positive)) {
         return positive;
       }
 
-      const negative = baseValue - step;
+      const negative = baseValue - offset;
 
       if (!seen.has(negative)) {
         return negative;
       }
     }
 
-    return baseValue + seen.size + 1;
+    return baseValue + BigInt(seen.size + 1);
   }
 
   function markGuessWrong() {
@@ -472,7 +553,7 @@
 
     const problem = session.activeProblem;
     const guess = session.currentGuess;
-    const alreadyKnown = Number.isInteger(knowledge.exactAnswers[problem.key]);
+    const alreadyKnown = getStoredAnswer(problem.key) !== null;
 
     session.attemptHistory.push({ guess: guess, verdict: "right" });
 
@@ -481,11 +562,11 @@
       knowledge.operatorStats.solvedCounts[problem.op] += 1;
     }
 
-    knowledge.exactAnswers[problem.key] = guess;
+    knowledge.exactAnswers[problem.key] = serializeBigInt(guess);
     adjustWeights(problem.op, session.currentGuessSources, 1);
     saveKnowledge();
 
-    const solvedLabel = problem.key + " = " + guess;
+    const solvedLabel = problem.key + " = " + serializeBigInt(guess);
     session = createEmptySession();
     setMessage("Learned: " + solvedLabel + ". Enter the next problem.", "success");
     render();
@@ -678,6 +759,52 @@
     if (tone) {
       elements.message.classList.add(tone);
     }
+  }
+
+  function parseIntegerText(value) {
+    if (typeof value !== "string" || !INTEGER_TEXT_PATTERN.test(value)) {
+      return null;
+    }
+
+    try {
+      return BigInt(value);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function serializeBigInt(value) {
+    return value.toString();
+  }
+
+  function normalizeStoredAnswer(value) {
+    const parsed = parseIntegerText(value);
+
+    if (parsed === null) {
+      return null;
+    }
+
+    return serializeBigInt(parsed);
+  }
+
+  function getStoredAnswer(key) {
+    if (!Object.prototype.hasOwnProperty.call(knowledge.exactAnswers, key)) {
+      return null;
+    }
+
+    return parseIntegerText(knowledge.exactAnswers[key]);
+  }
+
+  function compareBigInts(left, right) {
+    if (left < right) {
+      return -1;
+    }
+
+    if (left > right) {
+      return 1;
+    }
+
+    return 0;
   }
 
   window.basicMathAI = {

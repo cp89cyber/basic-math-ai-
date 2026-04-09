@@ -15,7 +15,8 @@
         <h1>Basic Math AI</h1>
         <p class="hero-copy">
           Enter one arithmetic problem. The app guesses. You only mark each guess
-          as right or wrong, and it learns from that feedback.
+          as right or wrong, and it learns from that feedback using exact integer
+          arithmetic, even for huge values.
         </p>
 
         <form id="problem-form" class="problem-form" novalidate>
@@ -27,7 +28,7 @@
               type="text"
               inputmode="text"
               autocomplete="off"
-              placeholder="Examples: 2+2, 9-4, 3*7, 8/2"
+              placeholder="Examples: 2+2, -9*4, 9007199254740993+2, 9007199254740993/3"
               aria-describedby="form-message"
             />
             <button id="start-button" type="submit">Start Problem</button>

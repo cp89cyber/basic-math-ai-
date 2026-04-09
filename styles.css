@@ -72,6 +72,7 @@ body::before {
   content: "";
   position: absolute;
   inset: auto -40px -70px auto;
+  pointer-events: none;
   width: 180px;
   height: 180px;
   border-radius: 50%;

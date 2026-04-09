@@ -6,8 +6,10 @@
   const OPERATORS = ["+", "-", "*", "/"];
   const MEMORY_SOURCE = "__memory__";
   const SPIRAL_SOURCE = "__spiral__";
-  const INTEGER_TEXT_PATTERN = /^-?\d+$/;
-  const PROBLEM_PATTERN = /^\s*(-?\d+)\s*([+\-*/])\s*(-?\d+)\s*$/;
+  const CANONICAL_INTEGER_PATTERN = /^-?\d+$/;
+  const USER_INTEGER_PATTERN = /^-?(?:\d+|\d{1,3}(?:,\d{3})+)$/;
+  const PROBLEM_PATTERN =
+    /^\s*(-?(?:\d+|\d{1,3}(?:,\d{3})+))\s*([+\-*/])\s*(-?(?:\d+|\d{1,3}(?:,\d{3})+))\s*$/;
   const HYPOTHESES = [
     {
       id: "left",
@@ -350,13 +352,17 @@
     if (!match) {
       return {
         ok: false,
-        message: "Enter a problem like 2+2, -9*4, or 9007199254740993/3.",
+        message:
+          "Enter a problem like 2+2, -9*4, 58,320/1,215, or 9007199254740993/3.",
       };
     }
 
-    const left = parseIntegerText(match[1]);
+    const leftText = normalizeIntegerInput(match[1]);
     const op = match[2];
-    const right = parseIntegerText(match[3]);
+    const rightText = normalizeIntegerInput(match[3]);
+
+    const left = parseIntegerText(leftText);
+    const right = parseIntegerText(rightText);
 
     if (left === null || right === null) {
       return {
@@ -762,7 +768,7 @@
   }
 
   function parseIntegerText(value) {
-    if (typeof value !== "string" || !INTEGER_TEXT_PATTERN.test(value)) {
+    if (typeof value !== "string" || !CANONICAL_INTEGER_PATTERN.test(value)) {
       return null;
     }
 
@@ -775,6 +781,20 @@
 
   function serializeBigInt(value) {
     return value.toString();
+  }
+
+  function normalizeIntegerInput(value) {
+    if (typeof value !== "string" || !USER_INTEGER_PATTERN.test(value)) {
+      return null;
+    }
+
+    const normalized = value.replace(/,/g, "");
+
+    if (!CANONICAL_INTEGER_PATTERN.test(normalized)) {
+      return null;
+    }
+
+    return normalized;
   }
 
   function normalizeStoredAnswer(value) {

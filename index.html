@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Basic Math AI</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-card">
+        <p class="eyebrow">Toy reinforcement learner</p>
+        <h1>Basic Math AI</h1>
+        <p class="hero-copy">
+          Enter one arithmetic problem. The app guesses. You only mark each guess
+          as right or wrong, and it learns from that feedback.
+        </p>
+
+        <form id="problem-form" class="problem-form" novalidate>
+          <label class="field-label" for="problem-input">Math problem</label>
+          <div class="problem-row">
+            <input
+              id="problem-input"
+              name="problem"
+              type="text"
+              inputmode="text"
+              autocomplete="off"
+              placeholder="Examples: 2+2, 9-4, 3*7, 8/2"
+              aria-describedby="form-message"
+            />
+            <button id="start-button" type="submit">Start Problem</button>
+          </div>
+          <p id="form-message" class="message" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel active-panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Active problem</p>
+            <h2>Current guess</h2>
+          </div>
+          <div id="active-empty" class="empty-state">
+            Start a problem to see the learner generate an answer.
+          </div>
+          <div id="active-content" class="active-content" hidden>
+            <div class="problem-chip">
+              <span class="chip-label">Problem</span>
+              <strong id="active-problem"></strong>
+            </div>
+            <div class="guess-block">
+              <p class="guess-label">Generated answer</p>
+              <p id="current-guess" class="guess-value">0</p>
+            </div>
+            <div class="action-row">
+              <button id="wrong-button" type="button" class="ghost-button">
+                Wrong
+              </button>
+              <button id="right-button" type="button" class="primary-button">
+                Right
+              </button>
+            </div>
+            <p id="guess-source" class="meta-line"></p>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Attempt history</p>
+            <h2>Tried guesses</h2>
+          </div>
+          <ol id="history-list" class="history-list"></ol>
+          <p id="history-empty" class="empty-state">
+            Wrong guesses will appear here while a problem is active.
+          </p>
+        </article>
+
+        <article class="panel stats-panel">
+          <div class="panel-header">
+            <p class="panel-kicker">Stored knowledge</p>
+            <h2>Learning stats</h2>
+          </div>
+          <div class="stats-topline">
+            <span class="stats-label">Solved problems stored</span>
+            <strong id="total-solved">0</strong>
+          </div>
+          <div id="operator-stats" class="operator-stats"></div>
+        </article>
+      </section>
+
+      <section class="footer-row">
+        <button id="reset-button" type="button" class="danger-button">
+          Reset Learning
+        </button>
+      </section>
+    </main>
+  </body>
+</html>
